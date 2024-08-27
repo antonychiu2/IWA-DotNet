@@ -94,6 +94,18 @@ jobs:
          $ARTIFACTID = Get-Content out.txt -First 1
          fcli ssc artifact download "$ARTIFACTID" -f='app.fpr'
       # Moob.AI
-      - name: Bugsy
-  #      run: npx mobbdev analyze --scan-file app.fpr --repo https://github.com/Keeggo-AppSec/IWA-DotNet
-        run: npx mobbdev analyze --scan-file app.fpr --repo $CI_PROJECT_URL --ref $CI_COMMIT_REF_NAME --api-key $MOBB_API_KEY
+      - name: Archive fpr
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: fpr
+          path: scandata.fpr
+
+      - name: Run Mobb on the findings and get fixes
+        if: always()
+        uses: mobb-dev/action/review@v1.1
+        with:
+          report-file: "scandata.fpr"
+          api-key: ${{ secrets.MOBB_API_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          scanner: fortify
