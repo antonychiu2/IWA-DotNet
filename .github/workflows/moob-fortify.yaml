@@ -81,7 +81,7 @@ jobs:
       - name: Espera Scan Fortify Acabar  
         run: fcli sc-sast scan wait-for --any-ssc-state PROCESS_COMPLETE --timeout 2h ::job::jobToken --store sscArtifactId
       - name: Recuperação do Ultimo Artefacto Scaneado
-        run: fcli ssc artifact download ::sscArtifactId -f=app.fpr
+        run: fcli ssc artifact download ::sscArtifactId -f='app.fpr'
       # Moob.AI
       - name: Run Mobb on the findings and get fixes
         if: always()
