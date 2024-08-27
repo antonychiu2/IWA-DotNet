@@ -87,11 +87,18 @@ jobs:
          $ARTIFACTID = Get-Content out.txt -First 1
          fcli ssc artifact download "$ARTIFACTID" -f='app.fpr'
       # Moob.AI
+      - name: Archive fpr
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: fpr
+          path: app.fpr
+
       - name: Run Mobb on the findings and get fixes
         if: always()
-        uses: mobb-dev/action@v1
+        uses: mobb-dev/action/review@v1.1
         with:
           report-file: "app.fpr"
           api-key: ${{ secrets.MOBB_API_TOKEN }}
           github-token: ${{ secrets.GH_TOKEN }}
-
+          scanner: fortify
