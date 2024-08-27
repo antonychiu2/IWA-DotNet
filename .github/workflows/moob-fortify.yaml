@@ -95,4 +95,4 @@ jobs:
          fcli ssc artifact download "$ARTIFACTID" -f='app.fpr'
       # Moob.AI
       - name: Bugsy
-        run: npx mobbdev analyze --scan-file app.fpr --repo ${{ GITHUB_SERVER_URL}}/${{ GITHUB_REPOSITORY }}
+        run: npx mobbdev analyze --scan-file app.fpr --repo $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
