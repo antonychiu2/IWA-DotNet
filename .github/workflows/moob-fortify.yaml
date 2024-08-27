@@ -68,25 +68,25 @@ jobs:
           fcli ssc session login --url=${{ secrets.SSC_URL }} --ci-token=${{ secrets.SSC_TOKEN }}
           fcli sc-sast session login --client-auth-token=${{ secrets.CLIENT_AUTH_TOKEN }} --ssc-url=${{ secrets.SSC_URL }} --ssc-ci-token=${{ secrets.SSC_TOKEN }}
        # Loga no SSC/SC-SAST
-      - name: Preparação do Pacote Fortify  
-        run: scancentral package --build-tool msbuild -o APP.zip
-      - name: Envio Fortify  
-        run: fcli sc-sast scan start --package-file=APP.zip --sensor-version=24.2 --publish-to ${{ env.App-Version  }} --ssc-ci-token=${{ secrets.SSC_TOKEN }} --store job:jobToken
+#      - name: Preparação do Pacote Fortify  
+#        run: scancentral package --build-tool msbuild -o APP.zip
+#      - name: Envio Fortify  
+#        run: fcli sc-sast scan start --package-file=APP.zip --sensor-version=24.2 --publish-to ${{ env.App-Version  }} --ssc-ci-token=${{ secrets.SSC_TOKEN }} --store job:jobToken
        # Debricked
-      - name: Debricked Scan
-        run: debricked scan -t ${{ secrets.DEBRICKED_TOKEN }} -r=${{ env.App-Version  }} --commit=${{ env.GITHUB_RUN_ID }}
-      - name: Importa os Resultados Debricked no SSC  
-        run: fcli ssc artifact import-debricked -t ${{ secrets.DEBRICKED_TOKEN }} --av=${{ env.App-Version  }} -r=${{ env.App-Version  }} --branch=$GITHUB_REF_NAME
+#      - name: Debricked Scan
+#        run: debricked scan -t ${{ secrets.DEBRICKED_TOKEN }} -r=${{ env.App-Version  }} --commit=${{ env.GITHUB_RUN_ID }}
+#      - name: Importa os Resultados Debricked no SSC  
+#        run: fcli ssc artifact import-debricked -t ${{ secrets.DEBRICKED_TOKEN }} --av=${{ env.App-Version  }} -r=${{ env.App-Version  }} --branch=$GITHUB_REF_NAME
        # Espera Scan
-      - name: Espera Scan Fortify Acabar  
-        run: fcli sc-sast scan wait-for --any-ssc-state PROCESS_COMPLETE --timeout 2h ::job::jobToken
+#      - name: Espera Scan Fortify Acabar  
+#        run: fcli sc-sast scan wait-for --any-ssc-state PROCESS_COMPLETE --timeout 2h ::job::jobToken
       - name: Recupera ID do Ultimo Artefacto
         run: |
-         $ArtifactId = fcli ssc artifact list --appversion ${{ env.App-Version  }} --query "['scanTypes'].contains('SCA')" --output 'expr={id}\n'
-         echo "ID do Ultimo Artefato Processado" $ArtifactId[0]
-         echo $ArtifactId[0] >> $Artefato
+         $env:ArtifactId = fcli ssc artifact list --appversion ${{ env.App-Version  }} --query "['scanTypes'].contains('SCA')" --output 'expr={id}\n'
+         echo "ID do Ultimo Artefato Processado" $env:ArtifactId[0]
+         $env:Artifact = echo $ArtifactId[0]
       - name: Recuperação do Ultimo Artefacto Scaneado
-        run: fcli ssc artifact download $Artefato -f='app.fpr'
+        run: fcli ssc artifact download $env:Artifact -f='app.fpr'
       # Moob.AI
       - name: Run Mobb on the findings and get fixes
         if: always()
