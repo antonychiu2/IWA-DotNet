@@ -86,7 +86,7 @@ jobs:
          echo $ArtifactId[0]
          $Artefato = $ArtifactId[0]
       - name: Recuperação do Ultimo Artefacto Scaneado
-        run: fcli ssc artifact download $Artefato -f='app.fpr'
+        run: fcli ssc artifact download ${{ env.$Artefato  } -f='app.fpr'
       # Moob.AI
       - name: Run Mobb on the findings and get fixes
         if: always()
