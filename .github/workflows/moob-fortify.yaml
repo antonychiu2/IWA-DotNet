@@ -79,9 +79,12 @@ jobs:
         run: fcli ssc artifact import-debricked -t ${{ secrets.DEBRICKED_TOKEN }} --av=${{ env.App-Version  }} -r=${{ env.App-Version  }} --branch=$GITHUB_REF_NAME
        # Espera Scan
       - name: Espera Scan Fortify Acabar  
-        run: fcli sc-sast scan wait-for --any-ssc-state PROCESS_COMPLETE --timeout 2h ::job::jobToken --store sscArtifactId
+        run: fcli sc-sast scan wait-for --any-ssc-state PROCESS_COMPLETE --timeout 2h ::job::jobToken
+      - name: Recupera ID do Ultimo Artefacto
+        run: |
+         $ArtifactId = fcli ssc artifact list --appversion ${{ env.App-Version  }} --query "['scanTypes'].contains('SCA')" --output 'expr={id}\n'
       - name: Recuperação do Ultimo Artefacto Scaneado
-        run: fcli ssc artifact download ::sscArtifactId -f='app.fpr'
+        run: fcli ssc artifact download $ArtifactId[0] -f='app.fpr'
       # Moob.AI
       - name: Run Mobb on the findings and get fixes
         if: always()
