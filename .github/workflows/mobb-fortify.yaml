@@ -1,84 +1,92 @@
-# Mobb/Fortify Fixer on pull requests
-# This workflow defines the needed steps to run Fortify on every pull request and pass the results to Mobb Fixer.
+################################################################################################################################################
+# Template de Github Actions - Stack de Remediação Automatizada
+# Elaboração:
+# Emerson Xavier  - emerson.xavier@keeggo.com
+# Michel Santana - michel.santana@keeggo.com
 #
-# Secrets in use (add your missing ones):
-# FORTIFY_USER - your Fortify username
-# FORTIFY_TENANT - your Fortify tenant name
-# FORTIFY_API_TOKEN - your Fortify access token
-# FORTIFY_RELEASE_ID - your Fortify app's release-id (number)
-# MOBB_API_TOKEN - your mobb user credentials (autumatially set if you forked this repo via the Mobb app)
-# GITHUB_TOKEN - automatically set by GitHub
+# Stack de Ferramentas de App Sec:
+# - Checkout do Código
+# - Debricked - Analise de SCA (Componente de Terceiros)
+# - Fortify SAST - Analise de Segurança de Código
+# - Moob.IA - Security IA SmartFix
+#
+#
+################################################################################################################################################
 
-name: "Mobb/Fortify"
+name: Debricked + Fortify SAST + Moob.Ai
 
-on:
-  pull_request:
-    branches: ["*"]
-
+# Gatilho de Disparo
+on: [push]
+# Steps
 jobs:
-  scan-and-fix:
-    name: Scan with Fortify and fix with Mobb
-    runs-on: 'ubuntu-latest'
+  Scan-And Fix:
+    runs-on: windows-latest
     timeout-minutes: 360
     permissions:
       pull-requests: write
       statuses: write
       contents: read
       actions: read
+    env:
+      App-Version: 'IWA:dotnet'
 
     steps:
-      - name: Setup Java on this machine
-        uses: actions/setup-java@v3
+      # Check out source code
+      - name: Check Out Source Code
+        uses: actions/checkout@v4
+      # Setup
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+      # Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
         with:
-          distribution: "oracle"
-          java-version: "19"
-      - name: Setup Maven on this machine
-        uses: stCarolas/setup-maven@v4.5
+          java-version: 17
+          distribution: 'temurin'
+       # Fortify Setup
+      - name: Install Debricked and FCLI
+        uses: fortify/github-action/setup@v1
         with:
-          maven-version: 3.8.6
-      - name: Setup Node on this machine
-        uses: actions/setup-node@v3.6.0
-        with:
-          node-version: 18
-      - name: Install sed
-        run: sudo apt-get update && sudo apt-get install -y sed
-
-      - name: Checkout repo to get code
-        uses: actions/checkout@v3
-
-      - name: Download Fortify uploader CLI
+          tool-definitions: https://github.com/fortify/tool-definitions/releases/download/v1/tool-definitions.yaml.zip
+          export-path: true
+          fcli: latest
+          sc-client: 23.2
+          fod-uploader: skip
+          vuln-exporter: skip
+          bugtracker-utility: skip
+          debricked-cli: latest
+       # Printa Utils
+      - name: Utilitários Instalados
         run: |
-          wget https://tools.fortify.com/scancentral/Fortify_ScanCentral_Client_21.2.0_x64.zip -O fcs.zip
-          unzip fcs.zip
-          chmod +x bin/scancentral
-          wget https://github.com/fod-dev/fod-uploader-java/releases/download/v5.4.0/FodUpload.jar -O FodUpload.jar
-
-      - name: Run Fortify SAST scan
+          java -version
+          fcli -V
+          debricked -v
+       # Loga no SSC/SC-SAST
+      - name: Login Fortify SSC/SC-SAST Controller  
         run: |
-          ./bin/scancentral package -bt mvn -o fortify_package.zip
-          UPLOAD_OUTPUT=$(java -jar FodUpload.jar \
-            -z fortify_package.zip \
-            -ep SingleScanOnly \
-            -portalurl https://ams.fortify.com/ \
-            -apiurl https://api.ams.fortify.com/ \
-            -userCredentials ${{ secrets.FORTIFY_USER }} ${{ secrets.FORTIFY_API_TOKEN }} \
-            -tenantCode ${{ secrets.FORTIFY_TENANT }} \
-            -releaseId ${{ secrets.FORTIFY_RELEASE_ID }} \
-            -pp Queue)
-          SCAN_ID=$(echo "$UPLOAD_OUTPUT" | sed -n 's/Scan \([0-9]*\).*$/\1/p')
-          FORTIFY_USER=${{ secrets.FORTIFY_USER }} FORTIFY_API_TOKEN=${{ secrets.FORTIFY_API_TOKEN }} FORTIFY_TENANT=${{ secrets.FORTIFY_TENANT }} node .github/scripts/fortify-wait-fpr.js "$SCAN_ID"
-      - name: Archive fpr
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: fpr
-          path: scandata.fpr
-
+          fcli ssc session login --url=${{ secrets.SSC_URL }} --ci-token=${{ secrets.SSC_TOKEN }}
+          fcli sc-sast session login --client-auth-token=${{ secrets.CLIENT_AUTH_TOKEN }} --ssc-url=${{ secrets.SSC_URL }} --ssc-ci-token=${{ secrets.SSC_TOKEN }}
+       # Loga no SSC/SC-SAST
+      - name: Preparação do Pacote Fortify  
+        run: scancentral package --build-tool msbuild -o APP.zip
+      - name: Envio Fortify  
+        run: fcli sc-sast scan start --package-file=APP.zip --sensor-version=24.2 --publish-to ${{ env.App-Version  }} --ssc-ci-token=${{ secrets.SSC_TOKEN }} --store job:jobToken
+       # Debricked
+      - name: Debricked Scan
+        run: debricked scan -t ${{ secrets.DEBRICKED_TOKEN }} -r=${{ env.App-Version  }} --commit=${{ env.GITHUB_RUN_ID }}
+      - name: Importa os Resultados Debricked no SSC  
+        run: fcli ssc artifact import-debricked -t ${{ secrets.DEBRICKED_TOKEN }} --av=${{ env.App-Version  }} -r=${{ env.App-Version  }} --branch=$GITHUB_REF_NAME
+       # Espera Scan
+      - name: Espera Scan Fortify Acabar  
+        run: fcli sc-sast scan wait-for --any-ssc-state PROCESS_COMPLETE --timeout 2h ::job::jobToken --store sscArtifactId
+      - name: Recuperação do Ultimo Artefacto Scaneado
+        run: fcli ssc artifact download ::sscArtifactId -f=app.fpr
+      # Moob.AI
       - name: Run Mobb on the findings and get fixes
         if: always()
         uses: mobb-dev/action/review@v1.1
         with:
-          report-file: "scandata.fpr"
+          report-file: "app.fpr"
           api-key: ${{ secrets.MOBB_API_TOKEN }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           scanner: fortify
