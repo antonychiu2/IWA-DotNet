@@ -82,9 +82,12 @@ jobs:
         run: fcli sc-sast scan wait-for --any-ssc-state PROCESS_COMPLETE --timeout 2h ::job::jobToken
       - name: Recupera ID do Ultimo Artefacto
         run: |
+         $ArtifactId = null
          $ArtifactId = fcli ssc artifact list --appversion ${{ env.App-Version  }} --query "['scanTypes'].contains('SCA')" --output 'expr={id}\n'
+         echo $ArtifactId[0]
+         $ArtifactId = $ArtifactId[0]
       - name: Recuperação do Ultimo Artefacto Scaneado
-        run: fcli ssc artifact download $ArtifactId[0] -f='app.fpr'
+        run: fcli ssc artifact download $ArtifactId -f='app.fpr'
       # Moob.AI
       - name: Run Mobb on the findings and get fixes
         if: always()
