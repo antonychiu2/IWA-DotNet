@@ -83,9 +83,9 @@ jobs:
       - name: Consulta ID do Ultimo Artefacto
         run: fcli ssc artifact list --appversion ${{ env.App-Version  }} --query "['scanTypes'].contains('SCA')" --output 'expr={id}\n' > out.txt
       - name: Recupera ID do Ultimo Artefacto
-        run: $Artifact | Get-Content out.txt -First 1
+        run: Get-Content out.txt -First 1 >> ${{ env.ARTIFACTID }}
       - name: Recuperação do Ultimo Artefacto Scaneado
-        run: fcli ssc artifact download $Artifact -f='app.fpr'
+        run: fcli ssc artifact download ${{ env.ARTIFACTID }} -f='app.fpr'
       # Moob.AI
       - name: Run Mobb on the findings and get fixes
         if: always()
